@@ -1,91 +1,82 @@
 <!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Оплата успішна</title>
-  <meta name="color-scheme" content="light">
-  <link rel="stylesheet" href="style.css" />
   <style>
-    body{display:flex;min-height:100vh;align-items:center;justify-content:center;background:#f3f5f7;color:#222}
-    .wrap{max-width:720px;background:#fff;border-radius:16px;padding:28px;box-shadow:0 12px 40px rgba(0,0,0,.12);text-align:center}
-    .btn{display:inline-block;margin-top:14px;padding:12px 18px;border-radius:10px;background:#607d8b;color:#fff;text-decoration:none;font-weight:700}
-    .muted{opacity:.8;font-size:.95rem;margin-top:8px}
+  :root{color-scheme:light only}
+  html,body{background:#e4e1e1!important}
+  *,*:before,*:after{forced-color-adjust:none}
+</style>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Оплата успішна</title>
+  <style>
+    body{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;
+         background:#f7f7f7;margin:0;display:grid;place-items:center;min-height:100vh;color:#222}
+    .card{background:#fff;max-width:700px;padding:32px 28px;border-radius:16px;
+          box-shadow:0 20px 50px rgba(0,0,0,.12)}
+    h1{margin:0 0 10px;font-weight:800}
+    p{margin:8px 0 0;line-height:1.5}
+    .btn{display:inline-block;margin-top:18px;padding:12px 18px;border-radius:12px;
+         text-decoration:none;background:#1f7a8c;color:#fff;font-weight:700}
+    .muted{opacity:.8}
+    .small{font-size:.9rem}
+    .ok{color:#1b8c3a;font-weight:700}
+    .error{color:#b4002f;font-weight:700}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Дякуємо за оплату!</h1>
-    <p>Ваш доступ:</p>
-    <p><a id="productLink" class="btn" href="./guide/" target="_blank" rel="noopener">Відкрити гайд</a></p>
-    <p class="muted" id="mailState">Надсилаємо посилання на вашу пошту…</p>
+  <div class="card">
+    <h1>Оплата пройшла успішно 🎉</h1>
+    <p class="muted">Якщо файл не відкрився автоматично, скористайтесь кнопкою нижче.</p>
+    <a id="guide-link" class="btn" target="_blank" rel="noopener">Відкрити гайд</a>
+    <p class="small" id="mailStatus" aria-live="polite"></p>
   </div>
 
-<script>
-// === НАЛАШТУВАННЯ ===
-// Твій GAS для листів (Web App) і секрет — збережені з минулих кроків
-const GAS_ENDPOINT  = 'https://script.google.com/macros/s/AKfycbzO1vWY2GGNoSfogdt0vIuNIMCZlaKvRdv7DJytpzFjWsW3GFIGOvbfhWDEtK_gsI5L/exec';
-const SHARED_SECRET = 'Gor22067132';
-// посилання на гайд — відносно цієї сторінки (можна замінити на будь-який абсолютний URL)
-const GUIDE_URL = 'https://igor54553.github.io/6-/';
+  <script>
+    // 1) Посилання на гайд, який треба видати після оплати:
+    const GUIDE_URL = "https://igor54553.github.io/22/"; // <- замініть на ваш реальний URL (Google Drive/Dropbox/ваш хостинг)
 
+    // 2) URL вашого Apps Script (додасте після кроку 4)
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxiZGtz2szd3Au7k2iR0C9kUZWaTK2Bw75llu15pzJZ1zsg63RvyMRkITGsGmiufKHu/exec";
 
-(function () {
-  const stateEl = document.getElementById('mailState');
-  const linkEl = document.getElementById('productLink');
-  if (linkEl) linkEl.href = GUIDE_URL;
+    // Підтягнемо email, який зберегли на першій сторінці:
+    const email = localStorage.getItem('buyer_email') || "";
 
-  // 1) спробувати взяти email з URL (?email=...) — якщо проксі його передав
-  const urlEmail = (new URL(location.href)).searchParams.get('email') || '';
-  if (urlEmail && !localStorage.getItem('buyer_email')) {
-    localStorage.setItem('buyer_email', urlEmail.trim());
-  }
+    // Показуємо та відкриваємо гайд
+    const a = document.getElementById('guide-link');
+    a.href = GUIDE_URL;
+    // Автовідкриття в новій вкладці (деякі браузери можуть заблокувати — є кнопка)
+    window.open(GUIDE_URL, "_blank", "noopener");
 
-  // 2) основне джерело — localStorage (модалка на index.html туди пише)
-  let email = (localStorage.getItem('buyer_email') || '').trim();
-
-  if (!email) {
-    // 3) компактна форма-фолбек прямо тут
-    stateEl.innerHTML = 'E-mail не знайдено. Вкажіть адресу — ми надішлемо доступ: ' +
-      '<input id="fallbackEmail" type="email" placeholder="you@example.com" style="margin-left:6px;padding:6px 8px;border:1px solid #ccc;border-radius:6px">' +
-      '<button id="sendFallback" class="btn" style="margin-left:8px">Надіслати</button>';
-    document.getElementById('sendFallback')?.addEventListener('click', () => {
-      const v = (document.getElementById('fallbackEmail').value || '').trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { alert('Введіть коректний e-mail'); return; }
-      localStorage.setItem('buyer_email', v);
-      email = v;
-      sendMail(email);
-    });
-    return;
-  }
-
-  // 4) e-mail є — відправляємо лист
-  sendMail(email);
-
-  function sendMail(to){
-    if (sessionStorage.getItem('mail_sent') === '1') {
-      stateEl.textContent = 'Лист уже відправлено. Перевірте пошту 🙂';
-      return;
+    // Відправка листа через Apps Script (без CORS-валідації, "no-cors")
+    const mailStatus = document.getElementById('mailStatus');
+    async function sendEmail(){
+      if(!email){
+        mailStatus.textContent = "Е-mail не знайдено. Вкажіть коректний e-mail при покупці наступного разу.";
+        mailStatus.className = "small error";
+        return;
+      }
+      try{
+        await fetch(APPS_SCRIPT_URL, {
+          method: "POST",
+          mode: "no-cors", // щоб не спіткнутися об CORS
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({
+            email,
+            guideUrl: GUIDE_URL,
+            subject: "Ваш гайд — доступ",
+            message: "Дякуємо за придбання! Ось ваше посилання на гайд: " + GUIDE_URL
+          })
+        });
+        mailStatus.textContent = "Ми надіслали лист із посиланням на " + email + ".";
+        mailStatus.className = "small ok";
+      }catch(e){
+        mailStatus.textContent = "Не вдалося надіслати лист. Спробуйте пізніше.";
+        mailStatus.className = "small error";
+      }
     }
-    stateEl.textContent = 'Надсилаємо посилання на вашу пошту…';
-
-    fetch(GAS_ENDPOINT, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        secret: SHARED_SECRET,
-        email: to,
-        title: 'Доступ до гайду',
-        link_url: GUIDE_URL,
-        name: 'MI.CARDIOLOGIST'
-      })
-    }).catch(()=>{}).finally(()=>{
-      sessionStorage.setItem('mail_sent', '1');
-      stateEl.textContent = 'Лист відправлено. Перевірте пошту 🙂';
-    });
-  }
-})();
-</script>
+    sendEmail();
+  </script>
 </body>
 </html>
